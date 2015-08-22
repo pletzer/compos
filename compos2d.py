@@ -121,12 +121,31 @@ class Compos2d:
             'rhoMat': rhoMat, 'rhoBVec': rhoBVec,
             'theMat': theMat, 'theBVec': theBVec}
 
+    def plot(self, refFlag, var):
+        
+        import tkplot
+        from Tkinter import Tk, Frame, Canvas
+        root = Tk()
+        frame = Frame(root)
+        frame.pack()
+        width, height = 500, 450
+        canvas = Canvas(bg="white", width=width, height=height)
+        canvas.pack()
+        title = var
+        data = self.refData
+        if not refFlag:
+            data = self.spcData
+        tkplot.tkplot(canvas, data['grid'], data[var], 0,0,1,
+                            title=title, WIDTH=width, HEIGHT=height)
+        root.mainloop()
+
 #####################################################
 
 def test1():
     cs = Compos2d()
     pts = [(1., 0.), (1., 1.), (0., 1.), (0., 0.)]
     cs.setReference(pts)
+    cs.plot(refFlag=True, var='the')
 
 if __name__ == '__main__':
     test1()
