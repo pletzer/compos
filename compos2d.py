@@ -63,7 +63,9 @@ class Compos2d:
         # boundary points. contour starts in the middle, goes counterclockwise
         # around. To close the loop we need to add points that are very close
         # to (xmid, ymid) and xyPoints[-1]
-        eps = 1.2456e-6*math.sqrt(areaMax)
+        
+        eps = 1.2456e-3*math.sqrt(areaMax)
+        
         pts = [(xmid, ymid)] + xyPoints + \
               [(xyPoints[0][0], xyPoints[0][1]-eps)] + [(xmid, ymid-eps)]
         numPts = len(pts)
@@ -110,10 +112,9 @@ class Compos2d:
         theMat = copy.deepcopy(amat)
         theBVec = copy.deepcopy(bvec)
     
-        # zero Dirichlet on 0,
-        # one Dirichlet on 1: numPoints + 2
-        bcData = {0: 0.0, 1: 0.0, numPoints: 1.0, numPoints+1: 1.0}
-        bcData[numPoints + 1] = 1.0
+        # zero Dirichlet on 0 and 1
+        # one Dirichlet on numPoints+1 and numPoints+2
+        bcData = {0: 0.0, 1: 0.0, numPoints+1: 1.0, numPoints+2: 1.0}
         bc = DirichletBound.DirichletBound(bcData)
         eq.dirichletB(bc, theMat, theBVec)
 
@@ -121,7 +122,7 @@ class Compos2d:
             'rhoMat': rhoMat, 'rhoBVec': rhoBVec,
             'theMat': theMat, 'theBVec': theBVec}
 
-    def plot(self, refFlag, var):
+    def plot(self, refFlag=True, var='rho'):
         
         import tkplot
         from Tkinter import Tk, Frame, Canvas
