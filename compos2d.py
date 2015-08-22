@@ -54,7 +54,7 @@ class Compos2d:
         ymax = max(ys)
         
         # max cell area
-        areaMax = (xmax - xmin)*(ymax - ymin)/100.0
+        areaMax = (xmax - xmin)*(ymax - ymin) / 100.0
                     
         # mid point
         xmid = reduce(lambda x, y: x + y, xs) / float(numPoints)
@@ -64,24 +64,49 @@ class Compos2d:
         # around. To close the loop we need to add points that are very close
         # to (xmid, ymid) and xyPoints[-1]
         
-        eps = 1.2456e-3*math.sqrt(areaMax)
+        eps = 1.2456e-3 * math.sqrt(areaMax)
         
-        pts = [(xmid, ymid)] + xyPoints + \
-              [(xyPoints[0][0], xyPoints[0][1]-eps)] + [(xmid, ymid-eps)]
+        pts = [(xmid, ymid+eps), (xyPoints[0][0], xyPoints[0][1]+eps)] + \
+               xyPoints[1:] + \
+              [(xyPoints[0][0], xyPoints[0][1]-eps), (xmid, ymid-eps)]
         numPts = len(pts)
+        
+        # to indicate that the points are boundary points
+        mrkrs = [1 for i in range(numPts)]
+        
         segs = [(i, i+1) for i in range(numPts-1)] + [(numPts-1, 0)]
+        
+        # pass the BCs as attributes so Steiner points can interpolate
+        x0, y0 = xyPoints[0]
+        the0 = 0.5 * math.atan2(y0 - ymid, x0 - xmid) / math.pi
+        def getTheta(p):
+            # the is a poloidal-like variable in the range 0 to 1
+            the = 0.5 * math.atan2(p[1] - ymid, p[0] - xmid) / math.pi
+            the -= the0
+            if the < 0:
+                the += 1.0
+            return the
+        
+        attrs = [(0., 0.)] + \
+                [(1., getTheta(p)) for p in xyPoints] + \
+                [(1., 1.), (0., 1.)]
+        #print attrs
             
         # triangulate
-        self.refTri = Triangulate.Triangulate()
-        self.refTri.set_points(pts)
-        self.refTri.set_segments(segs)
-        self.refTri.triangulate(area=areaMax)
-
-        return self.refTri.get_nodes()
+        tri = Triangulate.Triangulate()
+        tri.set_points(pts, mrkrs)
+        tri.set_segments(segs)
+        tri.set_attributes(attrs)
+        tri.triangulate(area=areaMax)
+        
+        attrs = tri.get_attributes()
+        grid = tri.get_nodes()
+        
+        return grid, attrs
 
     def _buildSparseSystem(self, xyPoints):
     
-        grid = self._triangulatePoints(xyPoints)
+        grid, bcs = self._triangulatePoints(xyPoints)
         #grid.plot()
         numPoints = len(xyPoints)
     
@@ -96,11 +121,12 @@ class Compos2d:
         rhoMat = copy.deepcopy(amat)
         rhoBVec = copy.deepcopy(bvec)
     
-        # zero Dirichlet on 0,
-        # one Dirichlet on 1: numPoints + 2
-        bcData = {i: 1.0 for i in range(1, numPoints + 2)}
-        bcData[0] = 0.0
-        bcData[numPoints + 1] = 0.0
+        bcData = {}
+        for i, g in grid.data.items():
+            if g[2]:
+                # boundary
+                #print 'x, y = {} rho Dirichlet BC is {}'.format(grid[i][0], bcs[i][0])
+                bcData[i] = bcs[i][0]
         bc = DirichletBound.DirichletBound(bcData)
         # modify the matrix and source vector
         eq.dirichletB(bc, rhoMat, rhoBVec)
@@ -112,9 +138,12 @@ class Compos2d:
         theMat = copy.deepcopy(amat)
         theBVec = copy.deepcopy(bvec)
     
-        # zero Dirichlet on 0 and 1
-        # one Dirichlet on numPoints+1 and numPoints+2
-        bcData = {0: 0.0, 1: 0.0, numPoints+1: 1.0, numPoints+2: 1.0}
+        bcData = {}
+        for i, g in grid.data.items():
+            if g[2]:
+                # boundary
+                #print 'x, y = {} theta Dirichlet BC is {}'.format(grid[i][0], bcs[i][1])
+                bcData[i] = bcs[i][1]
         bc = DirichletBound.DirichletBound(bcData)
         eq.dirichletB(bc, theMat, theBVec)
 
@@ -132,9 +161,10 @@ class Compos2d:
         width, height = 500, 450
         canvas = Canvas(bg="white", width=width, height=height)
         canvas.pack()
-        title = var
+        title = 'reference: ' + var
         data = self.refData
         if not refFlag:
+            'specimen: ' + var
             data = self.spcData
         tkplot.tkplot(canvas, data['grid'], data[var], 0,0,1,
                             title=title, WIDTH=width, HEIGHT=height)
@@ -146,6 +176,7 @@ def test1():
     cs = Compos2d()
     pts = [(1., 0.), (1., 1.), (0., 1.), (0., 0.)]
     cs.setReference(pts)
+    cs.plot(refFlag=True, var='rho')
     cs.plot(refFlag=True, var='the')
 
 if __name__ == '__main__':
