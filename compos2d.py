@@ -54,7 +54,7 @@ class Compos2d:
         ymax = max(ys)
         
         # max cell area
-        areaMax = (xmax - xmin)*(ymax - ymin) / 100.0
+        areaMax = (xmax - xmin)*(ymax - ymin) / 1000.0
                     
         # mid point
         xmid = reduce(lambda x, y: x + y, xs) / float(numPoints)
@@ -64,14 +64,15 @@ class Compos2d:
         # around. To close the loop we need to add points that are very close
         # to (xmid, ymid) and xyPoints[-1]
         
-        eps = 1.2456e-3 * math.sqrt(areaMax)
+        eps = 1.2456e-1 * math.sqrt(areaMax)
         
         pts = [(xmid, ymid+eps), (xyPoints[0][0], xyPoints[0][1]+eps)] + \
                xyPoints[1:] + \
               [(xyPoints[0][0], xyPoints[0][1]-eps), (xmid, ymid-eps)]
         numPts = len(pts)
         
-        # to indicate that the points are boundary points
+        # to indicate that the points are boundary points. we will need
+        # to keep track of boundary points after triangulation
         mrkrs = [1 for i in range(numPts)]
         
         segs = [(i, i+1) for i in range(numPts-1)] + [(numPts-1, 0)]
@@ -174,7 +175,7 @@ class Compos2d:
 
 def test1():
     cs = Compos2d()
-    pts = [(1., 0.), (1., 1.), (0., 1.), (0., 0.)]
+    pts = [(1., 0.5), (1., 1.), (0., 1.), (0., 0.), (1., 0.)]
     cs.setReference(pts)
     cs.plot(refFlag=True, var='rho')
     cs.plot(refFlag=True, var='the')
