@@ -3,6 +3,8 @@
 import Triangulate
 import ellipt2d
 import DirichletBound
+import cell
+import superlu
 import copy
 import math
 
@@ -16,13 +18,29 @@ class Compos2d:
     def setReference(self, xyPoints):
         
         self.refData = self._buildSparseSystem(xyPoints)
+        self.refData['rho'] = superlu.solve(self.refData['rhoMat'],
+                                            self.refData['rhoBVec'])
+        self.refData['the'] = superlu.solve(self.refData['theMat'],
+                                            self.refData['theBVec'])
     
     def setSpecimen(self, xyPoints):
     
         self.spcData = self._buildSparseSystem(xyPoints)
+        self.spcData['rho'] = superlu.solve(self.spcData['rhoMat'],
+                                            self.spcData['rhoBVec'])
+        self.spcData['the'] = superlu.solve(self.spcData['theMat'],
+                                            self.spcData['theBVec'])
 
     def findSpecimenPoint(self, referencePoint):
-        pass
+    
+        rhoRef = self._interp(self.refData, referencePoint, 'rho')
+        theRef = self._interp(self.refData, referencePoint, 'the')
+   
+    def _interp(self, data, xy, var):
+        
+        cells = data['cells']
+        v = data[var]
+        return cells.interp(v, xy[0], xy[1])
 
     def _triangulatePoints(self, xyPoints):
         
@@ -47,7 +65,7 @@ class Compos2d:
         # to (xmid, ymid) and xyPoints[-1]
         eps = 1.2456e-6*math.sqrt(areaMax)
         pts = [(xmid, ymid)] + xyPoints + \
-              [(xyPoints[-1][0], xyPoints[-1][1]-eps)] + [(xmid, ymid-eps)]
+              [(xyPoints[0][0], xyPoints[0][1]-eps)] + [(xmid, ymid-eps)]
         numPts = len(pts)
         segs = [(i, i+1) for i in range(numPts-1)] + [(numPts-1, 0)]
             
@@ -62,6 +80,7 @@ class Compos2d:
     def _buildSparseSystem(self, xyPoints):
     
         grid = self._triangulatePoints(xyPoints)
+        #grid.plot()
         numPoints = len(xyPoints)
     
         # Laplace equation solver
@@ -98,9 +117,9 @@ class Compos2d:
         bc = DirichletBound.DirichletBound(bcData)
         eq.dirichletB(bc, theMat, theBVec)
 
-        return {'eq': eq, 'grid': grid,
-            'rhoMat': rhoMat, 'rhoVBec': rhoBVec,
-            'theMat': theMat, 'theVBec': theBVec}
+        return {'eq': eq, 'grid': grid, 'cells': cell.cell(grid),
+            'rhoMat': rhoMat, 'rhoBVec': rhoBVec,
+            'theMat': theMat, 'theBVec': theBVec}
 
 #####################################################
 
