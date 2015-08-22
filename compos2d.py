@@ -10,50 +10,16 @@ class Compos2d:
 
     def __init__(self):
     
-        self.refEq = None
-    
-        self.eq = None
+        self.refData = {}
+        self.spcData = {}
 
     def setReference(self, xyPoints):
+        
+        self.refData = self._buildSparseSystem(xyPoints)
     
-        self.gridRef = self._triangulatePoints(xyPoints)
-        numPoints = len(xyPoints)
-        
-        # Laplace equation solver
-        self.refEq = ellipt2d.ellipt2d(self.gridRef, '1.0', '0.0', '0.0')
-        amat, bvec = self.refEq.stiffnessMat()
-        
-        #
-        # rho field
-        #
-        
-        self.rhoRefMat = copy.deepcopy(amat)
-        self.rhoRefBVec = copy.deepcopy(bvec)
-        
-        # zero Dirichlet on 0,
-        # one Dirichlet on 1: numPoints + 2
-        bcData = {i: 1.0 for i in range(1, numPoints + 2)}
-        bcData[0] = 0.0
-        bcData[numPoints + 1] = 0.0
-        bc = DirichletBound.DirichletBound(bcData)
-        self.refEq.dirichletB(bc, self.rhoRefMat, self.rhoRefBVec)
-        
-        #
-        # theta field
-        #
-        
-        self.theRefMat = copy.deepcopy(amat)
-        self.theRefBVec = copy.deepcopy(bvec)
-        
-        # zero Dirichlet on 0,
-        # one Dirichlet on 1: numPoints + 2
-        bcData = {0: 0.0, 1: 0.0, numPoints: 1.0, numPoints+1: 1.0}
-        bcData[numPoints + 1] = 1.0
-        bc = DirichletBound.DirichletBound(bcData)
-        self.refEq.dirichletB(bc, self.theRefMat, self.theRefBVec)
-
     def setSpecimen(self, xyPoints):
-        pass
+    
+        self.spcData = self._buildSparseSystem(xyPoints)
 
     def findSpecimenPoint(self, referencePoint):
         pass
@@ -93,6 +59,48 @@ class Compos2d:
 
         return self.refTri.get_nodes()
 
+    def _buildSparseSystem(self, xyPoints):
+    
+        grid = self._triangulatePoints(xyPoints)
+        numPoints = len(xyPoints)
+    
+        # Laplace equation solver
+        eq = ellipt2d.ellipt2d(grid, '1.0', '0.0', '0.0')
+        amat, bvec = eq.stiffnessMat()
+    
+        #
+        # rho field
+        #
+    
+        rhoMat = copy.deepcopy(amat)
+        rhoBVec = copy.deepcopy(bvec)
+    
+        # zero Dirichlet on 0,
+        # one Dirichlet on 1: numPoints + 2
+        bcData = {i: 1.0 for i in range(1, numPoints + 2)}
+        bcData[0] = 0.0
+        bcData[numPoints + 1] = 0.0
+        bc = DirichletBound.DirichletBound(bcData)
+        # modify the matrix and source vector
+        eq.dirichletB(bc, rhoMat, rhoBVec)
+    
+        #
+        # theta field
+        #
+    
+        theMat = copy.deepcopy(amat)
+        theBVec = copy.deepcopy(bvec)
+    
+        # zero Dirichlet on 0,
+        # one Dirichlet on 1: numPoints + 2
+        bcData = {0: 0.0, 1: 0.0, numPoints: 1.0, numPoints+1: 1.0}
+        bcData[numPoints + 1] = 1.0
+        bc = DirichletBound.DirichletBound(bcData)
+        eq.dirichletB(bc, theMat, theBVec)
+
+        return {'eq': eq, 'grid': grid,
+            'rhoMat': rhoMat, 'rhoVBec': rhoBVec,
+            'theMat': theMat, 'theVBec': theBVec}
 
 #####################################################
 
