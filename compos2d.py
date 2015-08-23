@@ -280,7 +280,7 @@ class Compos2d:
 
     def _buildSparseSystem(self, xyPoints):
         """
-        Build sparse matri system 
+        Build sparse matrix system
         @param xyPoints list of unique (x, y) tuples, ordered counterclockwise
         @return ellipt2d objects in a dictionary
         """
@@ -349,7 +349,7 @@ class Compos2d:
         data = self.refDic
         if not refFlag:
             'specimen: ' + var
-            data = self.spcData
+            data = self.spcDic
         tkplot.tkplot(canvas, data['grid'], data[var], 0,0,1,
                             title=title, WIDTH=width, HEIGHT=height)
         root.mainloop()
@@ -357,12 +357,21 @@ class Compos2d:
 #####################################################
 
 def test1():
+    
     cs = Compos2d()
+    
     pts = [(1., 0.5), (1., 1.), (0., 1.), (0., 0.), (1., 0.)]
     cs.setReference(pts)
     print cs.starInterpolation(cs.refData, xy=(0.5, 0.7), h=0.01)
-    #cs.plot(refFlag=True, var='rho')
-    #cs.plot(refFlag=True, var='the')
+
+    # add perturbations
+    n = len(pts)
+    spcPts = [ (pts[i][0] + 0.10*math.sin(2*i*2*math.pi/float(n)),
+                pts[i][1] + 0.05*math.cos(2*i*2*math.pi/float(n)))
+                for i in range(n)]
+    cs.setSpecimen(spcPts)
+    cs.plot(refFlag=True, var='rho')
+    cs.plot(refFlag=False, var='the')
 
 if __name__ == '__main__':
     test1()
