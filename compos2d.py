@@ -8,34 +8,83 @@ import superlu
 import copy
 import math
 
+import vtk
+
 class Compos2d:
 
     def __init__(self):
     
         self.refData = {}
         self.spcData = {}
+    
+        self.refDic = {}
+        self.spcDic = {}
 
     def setReference(self, xyPoints):
         
-        self.refData = self._buildSparseSystem(xyPoints)
-        self.refData['rho'] = superlu.solve(self.refData['rhoMat'],
-                                            self.refData['rhoBVec'])
-        self.refData['the'] = superlu.solve(self.refData['theMat'],
-                                            self.refData['theBVec'])
+        refDic = self._buildSparseSystem(xyPoints)
+        refDic['rho'] = superlu.solve(refDic['rhoMat'],
+                                      refDic['rhoBVec'])
+        refDic['the'] = superlu.solve(refDic['theMat'],
+                                      refDic['theBVec'])
+        self._toPolyData(refDic, self.refData)
+        self.refDic = refDic
     
     def setSpecimen(self, xyPoints):
     
-        self.spcData = self._buildSparseSystem(xyPoints)
-        self.spcData['rho'] = superlu.solve(self.spcData['rhoMat'],
-                                            self.spcData['rhoBVec'])
-        self.spcData['the'] = superlu.solve(self.spcData['theMat'],
-                                            self.spcData['theBVec'])
+        spcDic = self._buildSparseSystem(xyPoints)
+        spcDic['rho'] = superlu.solve(spcDic['rhoMat'],
+                                      spcDic['rhoBVec'])
+        spcDic['the'] = superlu.solve(spcDic['theMat'],
+                                      spcDic['theBVec'])
+        self._toPolyData(spcDic, self.spcData)
+        self.spcDic = spcDic
 
     def findSpecimenPoint(self, referencePoint):
     
-        rhoRef = self._interp(self.refData, referencePoint, 'rho')
-        theRef = self._interp(self.refData, referencePoint, 'the')
-   
+        rhoRef = self._interp(self.refDic, referencePoint, 'rho')
+        theRef = self._interp(self.refDic, referencePoint, 'the')
+    
+    def _toPolyData(self, xDic, xData):
+        
+        grid = xDic['grid']
+        cells = xDic['cells']
+        numPoints = len(grid)
+        numCells = len(cells.data)
+        
+        points = vtk.vtkPoints()
+        points.SetNumberOfPoints(numPoints)
+        for i in range(numPoints):
+            x, y = grid[i][0]
+            points.SetPoint(i, x, y, 0.0)
+        
+        pdata = vtk.vtkPolyData()
+        pdata.SetPoints(points)
+        pdata.Allocate(numCells, 1)
+        ptIds = vtk.vtkIdList()
+        npts = 3 # triangles
+        ptIds.SetNumberOfIds(3)
+        for i in range(numCells):
+            cell = cells.data[i]
+            for j in range(npts):
+                ptIds.SetId(j, cell[j])
+            pdata.InsertNextCell(vtk.VTK_POLYGON, ptIds)
+        
+        pointData = pdata.GetPointData()
+        numComps = 2 # 2 fields
+        vArray = vtk.vtkDoubleArray()
+        vArray.SetNumberOfComponents(2) # rho and the
+        vArray.SetNumberOfTuples(numPoints)
+        rhoArray, theArray = xDic['rho'], xDic['the']
+        for i in range(numPoints):
+            vals = rhoArray[i], theArray[i]
+            vArray.SetTuple(i, vals)
+
+        # store
+        xData['points'] = points
+        xData['polydata'] = pdata
+        xData['array'] = vArray
+
     def _interp(self, data, xy, var):
         
         cells = data['cells']
@@ -163,7 +212,7 @@ class Compos2d:
         canvas = Canvas(bg="white", width=width, height=height)
         canvas.pack()
         title = 'reference: ' + var
-        data = self.refData
+        data = self.refDic
         if not refFlag:
             'specimen: ' + var
             data = self.spcData
