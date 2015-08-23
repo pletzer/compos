@@ -13,6 +13,9 @@ import vtk
 class Compos2d:
 
     def __init__(self):
+        """
+        Constructor
+        """
     
         self.refData = {}
         self.spcData = {}
@@ -21,6 +24,10 @@ class Compos2d:
         self.spcDic = {}
 
     def setReference(self, xyPoints):
+        """
+        Set reference coordinates
+        @param xyPoints list of unique (x, y) tuples, ordered counterclockwise
+        """
         
         refDic = self._buildSparseSystem(xyPoints)
         refDic['rho'] = superlu.solve(refDic['rhoMat'],
@@ -31,6 +38,10 @@ class Compos2d:
         self.refDic = refDic
     
     def setSpecimen(self, xyPoints):
+        """
+        Set specimen coorindates
+        @param xyPoints list of unique (x, y) tuples, ordered counterclockwise
+        """
     
         spcDic = self._buildSparseSystem(xyPoints)
         spcDic['rho'] = superlu.solve(spcDic['rhoMat'],
@@ -42,11 +53,16 @@ class Compos2d:
 
     def findSpecimenPoint(self, referencePoint):
     
-        rhoRef = self._interp(self.refDic, referencePoint, 'rho')
-        theRef = self._interp(self.refDic, referencePoint, 'the')
+        pass
+        #rhoRef = self._interp(self.refDic, referencePoint, 'rho')
+        #theRef = self._interp(self.refDic, referencePoint, 'the')
     
     def _toPolyData(self, xDic, xData):
-        
+        """
+        Convert elltip2d data to VTK vtkPolyData object
+        @param xDic dictionalry of ellipt2d objects
+        @param xData dictionary of VTK objects (ouput)
+        """
         grid = xDic['grid']
         cells = xDic['cells']
         numPoints = len(grid)
@@ -78,20 +94,68 @@ class Compos2d:
         rhoArray, theArray = xDic['rho'], xDic['the']
         for i in range(numPoints):
             vals = rhoArray[i], theArray[i]
+            #print '.... {} setting rho and the: {}'.format(i, vals)
             vArray.SetTuple(i, vals)
+        pointData.SetScalars(vArray)
 
         # store
         xData['points'] = points
         xData['polydata'] = pdata
         xData['array'] = vArray
 
-    def _interp(self, data, xy, var):
+    def starInterpolation(self, data, xy, h):
+        """
+        Interpolate along a star stencil 
+        @param data either self.refData or self.spcData
+        @param xy x and y coordinates at center of stencil
+        @param h excursion from the center
+        @return {'w': value, 'e': value, 'n': value, 's': value}
+        """
         
-        cells = data['cells']
-        v = data[var]
-        return cells.interp(v, xy[0], xy[1])
+        lineX = vtk.vtkLineSource()
+        lineX.SetPoint1(xy[0] - h, xy[1], 0.0)
+        lineX.SetPoint2(xy[0] + h, xy[1], 0.0)
+        lineX.SetResolution(1)
+
+        lineY = vtk.vtkLineSource()
+        lineY.SetPoint1(xy[0], xy[1] - h, 0.0)
+        lineY.SetPoint2(xy[0], xy[1] + h, 0.0)
+        lineY.SetResolution(1)
+
+        probeX = vtk.vtkProbeFilter()
+        if vtk.VTK_MAJOR_VERSION >= 6:
+            probeX.SetSourceData(data['polydata'])
+        else:
+            probeX.SetSource(data['polydata'])
+        probeX.SetInputConnection(lineX.GetOutputPort())
+        probeX.Update()
+
+        probeY = vtk.vtkProbeFilter()
+        if vtk.VTK_MAJOR_VERSION >= 6:
+            probeY.SetSourceData(data['polydata'])
+        else:
+            probeY.SetSource(data['polydata'])
+        probeY.SetInputConnection(lineY.GetOutputPort())
+        probeY.Update()
+        
+        res = {}
+        
+        # west and east
+        res['w'] = probeX.GetOutput().GetPointData().GetArray(0).GetTuple(0)
+        res['e'] = probeX.GetOutput().GetPointData().GetArray(0).GetTuple(1)
+        
+        # south and north
+        res['s'] = probeY.GetOutput().GetPointData().GetArray(0).GetTuple(0)
+        res['n'] = probeY.GetOutput().GetPointData().GetArray(0).GetTuple(1)
+        
+        return res
 
     def _triangulatePoints(self, xyPoints):
+        """
+        Triangulate a set of points
+        @param xyPoints list of unique (x, y) tuples, ordered counterclockwise
+        @return node object and attribute values
+        """
         
         numPoints = len(xyPoints)
 
@@ -155,6 +219,11 @@ class Compos2d:
         return grid, attrs
 
     def _buildSparseSystem(self, xyPoints):
+        """
+        Build sparse matri system 
+        @param xyPoints list of unique (x, y) tuples, ordered counterclockwise
+        @return ellipt2d objects in a dictionary
+        """
     
         grid, bcs = self._triangulatePoints(xyPoints)
         #grid.plot()
@@ -202,6 +271,11 @@ class Compos2d:
             'theMat': theMat, 'theBVec': theBVec}
 
     def plot(self, refFlag=True, var='rho'):
+        """
+        Plot solution 
+        @param refFlag set to True if reference solution, False for specimen
+        @param var either 'rho' or 'the'
+        """
         
         import tkplot
         from Tkinter import Tk, Frame, Canvas
@@ -226,8 +300,9 @@ def test1():
     cs = Compos2d()
     pts = [(1., 0.5), (1., 1.), (0., 1.), (0., 0.), (1., 0.)]
     cs.setReference(pts)
-    cs.plot(refFlag=True, var='rho')
-    cs.plot(refFlag=True, var='the')
+    print cs.starInterpolation(cs.refData, xy=(0.5, 0.7), h=0.01)
+    #cs.plot(refFlag=True, var='rho')
+    #cs.plot(refFlag=True, var='the')
 
 if __name__ == '__main__':
     test1()
