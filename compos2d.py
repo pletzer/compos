@@ -9,6 +9,7 @@ import copy
 import math
 
 import vtk
+import numpy
 
 class Compos2d:
 
@@ -51,11 +52,70 @@ class Compos2d:
         self._toPolyData(spcDic, self.spcData)
         self.spcDic = spcDic
 
-    def findSpecimenPoint(self, referencePoint):
+    def findSpecimenPoint(self, referencePoint, h=0.01, niter=10, tol=1.e-6):
+        """
+        Find the x, y position in the specimen corresponding to a given position
+        in the reference
+        @param referencePoint point in the reference object
+        @param h small excursion used to compute the finite difference Jacobian
+        @param niter max number of Newton iterations
+        @param tol max error in the fields
+        @return specimen position, error, and number of iterations
+        """
+        
+        mat = numpy.zeros((2,2), numpy.float64)
     
-        pass
-        #rhoRef = self._interp(self.refDic, referencePoint, 'rho')
-        #theRef = self._interp(self.refDic, referencePoint, 'the')
+        # compute field values on the reference object
+        refStarData = self.starInterpolation(self.refData, xy, h)
+        refField = self._average(refStarData)
+
+        # initial guess
+        spcPos = numpy.array([referencePoint[0], referencePoint[1]])
+        error = float('inf')
+        iter = 0
+        while error > tol and iter <= niter:
+    
+            # compute the Jacobian of the specimen
+            spcStarData = self.starInterpolation(self.spcData, spcPos, h)
+            mat[0, 0] = (spcStarData['e'][0] - spcStarData['w'][0])/(2. * h)
+            mat[0, 1] = (spcStarData['n'][0] - spcStarData['s'][0])/(2. * h)
+            mat[1, 0] = (spcStarData['e'][1] - spcStarData['w'][1])/(2. * h)
+            mat[1, 1] = (spcStarData['n'][1] - spcStarData['s'][1])/(2. * h)
+        
+            # make sure the determinant is non-zero
+            det = mat[0, 0] * mat[1, 1] - mat[0, 1] * mat[1, 0]
+            if det == 0:
+                print '*** cannot invert mat! zero determinant'
+                break
+            matInv = numpy.linalg.inv(mat)
+        
+            # solve for the correction on the specimen
+            newSpcPos = numpy.array(referencePoint) - numpy.dot(matInv, spcPos)
+            
+            # update the specimen position
+            newSpcStarData = self.starInterpolation(self.spcData, newSpcPos, h)
+            spcField = self._averageStarData(newSpcStarData)
+            
+            # update the error
+            newError = math.sqrt(numpy.dot(refField - spcField, refField - spcField))
+    
+            if newError < error:
+                # accept new position
+                spcPos = newSpcPos
+                error = newError
+            else:
+                # backtrack and try again
+                spcPos += 0.3 * (newSpcPos - spcPos)
+            
+            iter += 1
+    
+        return spcPos, error, iter
+    
+    def _averageStarData(self, starData):
+        field = numpy.zeros((2,), numpy.float64)
+        for k, f in starData.items():
+            field += numpy.array(f)
+        field /= float(len(starData))
     
     def _toPolyData(self, xDic, xData):
         """
