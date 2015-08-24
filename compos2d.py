@@ -78,7 +78,6 @@ class Compos2d:
             # compute the Jacobian at the specimen location
             spcStarData = self.starInterpolation(self.spcData, spcPos, h)
             spcField = self._averageStarData(spcStarData)
-            print '.... spcStarData = ', spcStarData, ' spcPos = ', spcPos, ' h = ', h
             mat[0, 0] = (spcStarData['e'][0] - spcStarData['w'][0])/(2. * h) # d rho / dx
             mat[0, 1] = (spcStarData['n'][0] - spcStarData['s'][0])/(2. * h) # d rho / dy
             mat[1, 0] = (spcStarData['e'][1] - spcStarData['w'][1])/(2. * h) # d the / dx
@@ -374,7 +373,6 @@ def test1():
     
     pts = [(1., 0.5), (1., 1.), (0., 1.), (0., 0.), (1., 0.)]
     cs.setReference(pts)
-    print cs.starInterpolation(cs.refData, xy=(0.5, 0.7), h=0.01)
 
     # add perturbations
     n = len(pts)
@@ -382,8 +380,7 @@ def test1():
                 pts[i][1] + 0.05*math.cos(2*i*2*math.pi/float(n)))
                 for i in range(n)]
     cs.setSpecimen(spcPts)
-    print cs.starInterpolation(cs.spcData, xy=(0.5, 0.7), h=0.01)
-    
+
     refPos = (0.3, 0.4)
     spcPos, error, iter = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
     print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
