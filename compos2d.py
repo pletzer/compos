@@ -66,31 +66,37 @@ class Compos2d:
         mat = numpy.zeros((2,2), numpy.float64)
     
         # compute field values on the reference object
-        refStarData = self.starInterpolation(self.refData, xy, h)
-        refField = self._average(refStarData)
+        refStarData = self.starInterpolation(self.refData, referencePoint, h)
+        refField = self._averageStarData(refStarData)
 
         # initial guess
-        spcPos = numpy.array([referencePoint[0], referencePoint[1]])
+        spcPos = numpy.array(referencePoint)
         error = float('inf')
         iter = 0
         while error > tol and iter <= niter:
     
-            # compute the Jacobian of the specimen
+            # compute the Jacobian at the specimen location
             spcStarData = self.starInterpolation(self.spcData, spcPos, h)
-            mat[0, 0] = (spcStarData['e'][0] - spcStarData['w'][0])/(2. * h)
-            mat[0, 1] = (spcStarData['n'][0] - spcStarData['s'][0])/(2. * h)
-            mat[1, 0] = (spcStarData['e'][1] - spcStarData['w'][1])/(2. * h)
-            mat[1, 1] = (spcStarData['n'][1] - spcStarData['s'][1])/(2. * h)
+            spcField = self._averageStarData(spcStarData)
+            print '.... spcStarData = ', spcStarData, ' spcPos = ', spcPos, ' h = ', h
+            mat[0, 0] = (spcStarData['e'][0] - spcStarData['w'][0])/(2. * h) # d rho / dx
+            mat[0, 1] = (spcStarData['n'][0] - spcStarData['s'][0])/(2. * h) # d rho / dy
+            mat[1, 0] = (spcStarData['e'][1] - spcStarData['w'][1])/(2. * h) # d the / dx
+            mat[1, 1] = (spcStarData['n'][1] - spcStarData['s'][1])/(2. * h) # d the / dy
         
             # make sure the determinant is non-zero
             det = mat[0, 0] * mat[1, 1] - mat[0, 1] * mat[1, 0]
             if det == 0:
+                print '*** refStarData = ', refStarData
+                print '*** spcStarData = ', spcStarData
+                print '*** mat = ', mat
                 print '*** cannot invert mat! zero determinant'
                 break
             matInv = numpy.linalg.inv(mat)
         
             # solve for the correction on the specimen
-            newSpcPos = numpy.array(referencePoint) - numpy.dot(matInv, spcPos)
+            deltas = numpy.dot(matInv, refField - spcField)
+            newSpcPos = spcPos + deltas
             
             # update the specimen position
             newSpcStarData = self.starInterpolation(self.spcData, newSpcPos, h)
@@ -112,10 +118,16 @@ class Compos2d:
         return spcPos, error, iter
     
     def _averageStarData(self, starData):
+        """
+        Compute the average field from the star stencil
+        @param starData dictionary containing est, west, north, and south field values
+        @return field
+        """
         field = numpy.zeros((2,), numpy.float64)
         for k, f in starData.items():
             field += numpy.array(f)
         field /= float(len(starData))
+        return field
     
     def _toPolyData(self, xDic, xData):
         """
@@ -370,8 +382,14 @@ def test1():
                 pts[i][1] + 0.05*math.cos(2*i*2*math.pi/float(n)))
                 for i in range(n)]
     cs.setSpecimen(spcPts)
-    cs.plot(refFlag=True, var='rho')
-    cs.plot(refFlag=False, var='the')
+    print cs.starInterpolation(cs.spcData, xy=(0.5, 0.7), h=0.01)
+    
+    refPos = (0.3, 0.4)
+    spcPos, error, iter = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
+    print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
+    
+    #cs.plot(refFlag=True, var='rho')
+    #cs.plot(refFlag=False, var='the')
 
 if __name__ == '__main__':
     test1()
