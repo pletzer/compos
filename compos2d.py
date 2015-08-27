@@ -385,8 +385,8 @@ def test1():
     spcPos, error, iter = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
     print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
     
-    #cs.plot(refFlag=True, var='rho')
-    #cs.plot(refFlag=False, var='the')
+    cs.plot(refFlag=True, var='rho')
+    cs.plot(refFlag=False, var='the')
 
 if __name__ == '__main__':
     test1()

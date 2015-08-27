@@ -20,7 +20,7 @@ We describe the method in 2D for simplicity
    
 3. Solve the Laplace equation for two fields: rho and theta. Rho has zero 
    boundary condition on the internal landmark point, and rho = 1 on the 
-   external contour. To compute theta, we draw line form the internal 
+   external contour. To compute theta, we draw a line from the internal 
    landmark to the external landmark point and apply theta = 0 on one 
    side of the line and theta = 1 on the other. Together, rho and theta
    uniquely identify a position on the bone, irrespective of differences
@@ -28,9 +28,9 @@ We describe the method in 2D for simplicity
    
 4. With 1, 2, and 3 in place we can find any location on a bone specimen,
    which matches a location on another, reference bone. From the location 
-   on the reference bone compute rho and theta (requires interpolation). 
+   on the reference bone, on can compute rho and theta (interpolation). 
    Then one finds the x, y coordinates that map to rho and theta on the 
-   specimen bone. This requires an iterative method, for instance Newton.
+   specimen bone, which requires an iterative method, for instance Newton.
    
 
    
