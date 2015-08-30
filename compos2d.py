@@ -79,6 +79,8 @@ class Compos2d:
         # initial guess
         spcPos = numpy.array(referencePoint)
         error = float('inf')
+        alpha = 1.0 # how much we trust Newton
+        oldSpcPos = numpy.array(referencePoint) # copy
         iter = 0
         while error > tol and iter <= niter:
     
@@ -97,7 +99,10 @@ class Compos2d:
                 print '*** spcStarData = ', spcStarData
                 print '*** mat = ', mat
                 print '*** cannot invert mat! zero determinant'
-                break
+                # backtrack
+                spcPos[:] = oldSpcPos
+                alpha /= 3.5
+                continue
             matInv = numpy.linalg.inv(mat)
         
             # solve for the correction on the specimen
@@ -114,11 +119,13 @@ class Compos2d:
             history.append(spcPos)
             if newError < error:
                 # accept new position
+                oldSpcPos[:] = spcPos
                 spcPos = newSpcPos
                 error = newError
             else:
                 # backtrack and try again
-                spcPos += 0.3 * (newSpcPos - spcPos)
+                alpha /= 2.5
+                spcPos += alpha * (newSpcPos - spcPos)
             
             iter += 1
     
@@ -246,7 +253,7 @@ class Compos2d:
         ymax = max(ys)
         
         # max cell area
-        areaMax = (xmax - xmin)*(ymax - ymin) / 1000.0
+        areaMax = (xmax - xmin)*(ymax - ymin) / 20000.0
                     
         # mid point
         xmid = reduce(lambda x, y: x + y, xs) / float(numPoints)
@@ -353,7 +360,8 @@ class Compos2d:
         """
         Plot solution 
         @param refFlag set to True if reference solution, False for specimen
-        @param var either 'rho' or 'the'
+        @param title add title to plot
+        @param xyPath show Newton covnergence
         """
         
         import plot
@@ -363,9 +371,25 @@ class Compos2d:
             data = self.spcDic
         
         root = Tk()
-        plot.Plot(root, data['grid'], width=400, height=400, \
-                  title=title).draw(data['rho'], data['the'], xyPath=xyPath)
+        bxsize = self.boxsize()
+        plot.Plot(root, data['grid'], width=800, height=800, \
+                  title=title, boxsize=bxsize).draw(data['rho'], \
+                                                     data['the'], xyPath=xyPath)
         root.mainloop()
+
+    def boxsize(self):
+        """
+        Return min/max box coordinates across reference and specimen
+        @return xmin, ymin, xmax, ymax
+        """
+        xminRef, yminRef, xmaxRef, ymaxRef = self.refDic['grid'].boxsize()
+        xminSpc, yminSpc, xmaxSpc, ymaxSpc = self.spcDic['grid'].boxsize()
+        xmin = min(xminRef, xminSpc)
+        ymin = min(yminRef, yminSpc)
+        xmax = max(xmaxRef, xmaxSpc)
+        ymax = max(ymaxRef, ymaxSpc)
+        return (xmin, ymin, xmax, ymax)
+
 #####################################################
 
 def test1():
@@ -387,7 +411,7 @@ def test1():
     print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
     print 'position history: {}'.format(history)
     
-    cs.plot(refFlag=True, title='reference', xyPath=[refPos],)
+    cs.plot(refFlag=True, title='reference', xyPath=[refPos])
     cs.plot(refFlag=False, title='specimen', xyPath=history)
 
 if __name__ == '__main__':
