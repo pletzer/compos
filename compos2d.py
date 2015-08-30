@@ -11,6 +11,11 @@ import math
 import vtk
 import numpy
 
+try:
+    from tkinter import Tk, Frame, Button, Canvas, BOTTOM # python 3
+except:
+    from Tkinter import Tk, Frame, Button, Canvas, BOTTOM # python 2
+
 class Compos2d:
 
     def __init__(self):
@@ -341,30 +346,23 @@ class Compos2d:
             'rhoMat': rhoMat, 'rhoBVec': rhoBVec,
             'theMat': theMat, 'theBVec': theBVec}
 
-    def plot(self, refFlag=True, var='rho'):
+    def plot(self, refFlag=True, title=''):
         """
         Plot solution 
         @param refFlag set to True if reference solution, False for specimen
         @param var either 'rho' or 'the'
         """
         
-        import tkplot
-        from Tkinter import Tk, Frame, Canvas
-        root = Tk()
-        frame = Frame(root)
-        frame.pack()
-        width, height = 500, 450
-        canvas = Canvas(bg="white", width=width, height=height)
-        canvas.pack()
-        title = 'reference: ' + var
+        import plot
+        
         data = self.refDic
         if not refFlag:
-            'specimen: ' + var
             data = self.spcDic
-        tkplot.tkplot(canvas, data['grid'], data[var], 0,0,1,
-                            title=title, WIDTH=width, HEIGHT=height)
+        
+        root = Tk()
+        plot.Plot(root, data['grid'], width=400, height=400, \
+                  title=title).draw(data['rho'], data['the'])
         root.mainloop()
-
 #####################################################
 
 def test1():
@@ -385,8 +383,8 @@ def test1():
     spcPos, error, iter = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
     print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
     
-    cs.plot(refFlag=True, var='rho')
-    cs.plot(refFlag=False, var='the')
+    cs.plot(refFlag=True, title='reference')
+    cs.plot(refFlag=False, title='specimen')
 
 if __name__ == '__main__':
     test1()
