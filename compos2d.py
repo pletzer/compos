@@ -60,13 +60,15 @@ class Compos2d:
     def findSpecimenPoint(self, referencePoint, h=0.01, niter=10, tol=1.e-6):
         """
         Find the x, y position in the specimen corresponding to a given position
-        in the reference
-        @param referencePoint point in the reference object
+        on the reference object
+        @param referencePoint point on the reference object
         @param h small excursion used to compute the finite difference Jacobian
         @param niter max number of Newton iterations
         @param tol max error in the fields
         @return specimen position, error, and number of iterations
         """
+        
+        history = []
         
         mat = numpy.zeros((2,2), numpy.float64)
     
@@ -109,6 +111,7 @@ class Compos2d:
             # update the error
             newError = math.sqrt(numpy.dot(refField - spcField, refField - spcField))
     
+            history.append(spcPos)
             if newError < error:
                 # accept new position
                 spcPos = newSpcPos
@@ -119,7 +122,7 @@ class Compos2d:
             
             iter += 1
     
-        return spcPos, error, iter
+        return spcPos, error, iter, history
     
     def _averageStarData(self, starData):
         """
@@ -346,7 +349,7 @@ class Compos2d:
             'rhoMat': rhoMat, 'rhoBVec': rhoBVec,
             'theMat': theMat, 'theBVec': theBVec}
 
-    def plot(self, refFlag=True, title=''):
+    def plot(self, refFlag=True, title='', xyPath=[]):
         """
         Plot solution 
         @param refFlag set to True if reference solution, False for specimen
@@ -361,7 +364,7 @@ class Compos2d:
         
         root = Tk()
         plot.Plot(root, data['grid'], width=400, height=400, \
-                  title=title).draw(data['rho'], data['the'])
+                  title=title).draw(data['rho'], data['the'], xyPath=xyPath)
         root.mainloop()
 #####################################################
 
@@ -380,11 +383,12 @@ def test1():
     cs.setSpecimen(spcPts)
 
     refPos = (0.3, 0.4)
-    spcPos, error, iter = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
+    spcPos, error, iter, history = cs.findSpecimenPoint(refPos, tol=1.e-6, niter=10, h=0.01)
     print 'refPos = {} spcPos = {} error = {} iter = {}'.format(refPos, spcPos, error, iter)
+    print 'position history: {}'.format(history)
     
-    cs.plot(refFlag=True, title='reference')
-    cs.plot(refFlag=False, title='specimen')
+    cs.plot(refFlag=True, title='reference', xyPath=[refPos],)
+    cs.plot(refFlag=False, title='specimen', xyPath=history)
 
 if __name__ == '__main__':
     test1()

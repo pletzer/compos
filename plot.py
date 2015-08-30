@@ -30,7 +30,7 @@ class Plot:
         self.canvas = Canvas(bg="white", width=width, height=height)
         self.canvas.pack()
 
-    def draw(self, rho, the):
+    def draw(self, rho, the, xyPath=[]):
         
         border_x, border_y = 0.2, 0.2
         xmin, ymin, xmax, ymax = self.grid.boxsize()
@@ -59,6 +59,12 @@ class Plot:
                 theAbc = (the[ia] + the[ib] + the[ic])/3.0
                 color = colormap(rhoAbc, theAbc)
                 self.canvas.create_polygon(xa, ya, xb, yb, xc, yc, fill=color)
+        
+        # add path if present
+        for (x, y) in xyPath:
+            xa, ya = scale*(x - xmin) + a, \
+                self.height -scale*(y - ymin) - b
+            self.canvas.create_oval(xa-2, ya-2, xa+2, ya+2, fill='black')
     
         # add title
         x, y = self.width/3., self.height/15.0
