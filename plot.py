@@ -12,9 +12,9 @@ import cell
 import math
 
 def colormap(rho, the):
-    r = rho
+    r = rho**2
     g = the
-    b = 1. - rho
+    b = 1. - rho**2
     return "#%02x%02x%02x" % (r*255, g*255, b*255)
 
 class Plot:
